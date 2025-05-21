@@ -37,3 +37,7 @@ coverage/
 reports/
 *.html
 report-*.json
+
+# Claude configuration with sensitive data
+.claude/
+config.json
