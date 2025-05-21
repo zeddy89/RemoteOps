@@ -1,0 +1,27 @@
+{
+  "connections": [
+    {
+      "name": "Production Server",
+      "host": "example.com",
+      "port": 22,
+      "username": "admin",
+      "keyPath": "~/.ssh/id_rsa"
+    },
+    {
+      "name": "Development Server",
+      "host": "dev.example.com",
+      "port": 22,
+      "username": "developer"
+    }
+  ],
+  "defaultCommands": {
+    "disk": "df -h && du -h --max-depth=1 /var",
+    "memory": "free -h && ps aux --sort=-%mem | head -10",
+    "network": "netstat -tuln && ping -c 3 google.com",
+    "processes": "ps aux --sort=-%cpu | head -15"
+  },
+  "reporting": {
+    "outputDir": "./reports",
+    "defaultFormat": "html"
+  }
+}

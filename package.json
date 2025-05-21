@@ -1,0 +1,42 @@
+{
+  "name": "mcp-ssh-client",
+  "version": "1.0.0",
+  "description": "SSH client for server diagnostics and troubleshooting",
+  "main": "dist/index.js",
+  "bin": {
+    "mcp-ssh-client": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ssh",
+    "client",
+    "diagnostics",
+    "troubleshooting",
+    "server",
+    "monitoring"
+  ],
+  "author": "slewis",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/slewis/mcp-ssh-client.git"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "ssh2": "^1.16.0"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.8",
+    "@types/node": "^22.15.21",
+    "@types/ssh2": "^1.15.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
