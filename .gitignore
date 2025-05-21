@@ -65,3 +65,10 @@ pids
 # Local data
 data/
 private/
+
+# Security-related utility files
+passwords.txt
+*passwords*.txt
+*sensitive*.sh
+*purge*.sh
+remove-sensitive-data.sh
