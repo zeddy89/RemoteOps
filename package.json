@@ -1,10 +1,10 @@
 {
-  "name": "mcp-ssh-client",
+  "name": "remoteops",
   "version": "1.0.0",
   "description": "SSH client for server diagnostics and troubleshooting",
   "main": "dist/index.js",
   "bin": {
-    "mcp-ssh-client": "./dist/index.js"
+    "remoteops": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/slewis/mcp-ssh-client.git"
+    "url": "https://github.com/slewis/RemoteOps.git"
   },
   "dependencies": {
     "chalk": "^4.1.2",

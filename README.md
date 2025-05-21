@@ -1,4 +1,4 @@
-# MCP SSH Client
+# RemoteOps
 
 A powerful SSH client for server diagnostics, troubleshooting, and infrastructure management. This tool helps you connect to remote servers, run diagnostics, troubleshoot issues, execute commands, and manage Hyper-V virtual machines - all from a simple interactive interface.
 
@@ -23,8 +23,8 @@ A powerful SSH client for server diagnostics, troubleshooting, and infrastructur
 
 ```bash
 # Clone the repository
-git clone https://github.com/slewis/mcp-ssh-client.git
-cd mcp-ssh-client
+git clone https://github.com/slewis/RemoteOps.git
+cd RemoteOps
 
 # Install dependencies
 npm install
@@ -43,7 +43,7 @@ npm link
 Connect to a server and run basic diagnostics:
 
 ```bash
-mcp-ssh-client connect --host example.com --username myuser
+remoteops connect --host example.com --username myuser
 ```
 
 Options:
@@ -59,7 +59,7 @@ Options:
 Directly troubleshoot a specific issue:
 
 ```bash
-mcp-ssh-client troubleshoot --host example.com --issue "disk space"
+remoteops troubleshoot --host example.com --issue "disk space"
 ```
 
 Options:
@@ -71,7 +71,7 @@ Options:
 Execute a custom command on the server:
 
 ```bash
-mcp-ssh-client run --host example.com --command "ps aux | grep nginx"
+remoteops run --host example.com --command "ps aux | grep nginx"
 ```
 
 Options:
@@ -83,7 +83,7 @@ Options:
 Check for pending system updates on a server:
 
 ```bash
-mcp-ssh-client updates --host example.com --username myuser
+remoteops updates --host example.com --username myuser
 ```
 
 Options:
@@ -96,7 +96,7 @@ Options:
 Execute the same command on multiple servers simultaneously:
 
 ```bash
-mcp-ssh-client multi --hosts "server1.com,server2.com,192.168.1.10" --username admin --command "uptime"
+remoteops multi --hosts "server1.com,server2.com,192.168.1.10" --username admin --command "uptime"
 ```
 
 Options:
@@ -109,7 +109,7 @@ Options:
 Run system diagnostics on multiple servers simultaneously:
 
 ```bash
-mcp-ssh-client multi-diag --hosts "server1.com,server2.com" --username admin --report html
+remoteops multi-diag --hosts "server1.com,server2.com" --username admin --report html
 ```
 
 Options:
@@ -124,7 +124,7 @@ Options:
 List and manage Hyper-V virtual machines on a Windows host:
 
 ```bash
-mcp-ssh-client hyperv --host windows-server.com --username admin --list
+remoteops hyperv --host windows-server.com --username admin --list
 ```
 
 Options:
@@ -145,7 +145,7 @@ Options:
 Create a new virtual machine on a Windows Hyper-V host:
 
 ```bash
-mcp-ssh-client hyperv-create --host windows-server.com --username admin --name "UbuntuVM" --memory 4 --cpu 2 --disk 60 --iso "C:\path\to\ubuntu.iso"
+remoteops hyperv-create --host windows-server.com --username admin --name "UbuntuVM" --memory 4 --cpu 2 --disk 60 --iso "C:\path\to\ubuntu.iso"
 ```
 
 Options:
@@ -167,13 +167,13 @@ The client supports multiple authentication methods:
 Use your SSH private key for secure authentication:
 
 ```bash
-mcp-ssh-client connect --host example.com --key ~/.ssh/id_rsa
+remoteops connect --host example.com --key ~/.ssh/id_rsa
 ```
 
 If your key requires a passphrase:
 
 ```bash
-mcp-ssh-client connect --host example.com --key ~/.ssh/id_rsa --passphrase "your-passphrase"
+remoteops connect --host example.com --key ~/.ssh/id_rsa --passphrase "your-passphrase"
 ```
 
 ### SSH Config File
@@ -181,7 +181,7 @@ mcp-ssh-client connect --host example.com --key ~/.ssh/id_rsa --passphrase "your
 Leverage your existing SSH config file:
 
 ```bash
-mcp-ssh-client connect --host example.com --config ~/.ssh/config
+remoteops connect --host example.com --config ~/.ssh/config
 ```
 
 This will use all settings from your SSH config file including hostname, port, user, and identity files.
@@ -192,7 +192,7 @@ Use your SSH agent for passwordless authentication:
 
 ```bash
 ssh-add ~/.ssh/id_rsa  # Add your key to the SSH agent first
-mcp-ssh-client connect --host example.com
+remoteops connect --host example.com
 ```
 
 ### Password Authentication
@@ -200,13 +200,13 @@ mcp-ssh-client connect --host example.com
 For cases where key authentication isn't possible:
 
 ```bash
-mcp-ssh-client connect --host example.com -P  # Will prompt for password
+remoteops connect --host example.com -P  # Will prompt for password
 ```
 
 Or non-interactively (less secure):
 
 ```bash
-mcp-ssh-client connect --host example.com --pwd "your-password"
+remoteops connect --host example.com --pwd "your-password"
 ```
 
 ## Interactive Mode
@@ -215,7 +215,7 @@ If you run any command without all required options, the client will prompt you 
 
 Example:
 ```bash
-mcp-ssh-client connect
+remoteops connect
 ```
 
 This will guide you through an interactive setup process with prompts for:
