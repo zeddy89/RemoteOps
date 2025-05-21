@@ -23,7 +23,7 @@ A powerful SSH client for server diagnostics, troubleshooting, and infrastructur
 
 ```bash
 # Clone the repository
-git clone https://github.com/slewis/RemoteOps.git
+git clone https://github.com/zeddy89/RemoteOps.git
 cd RemoteOps
 
 # Install dependencies
