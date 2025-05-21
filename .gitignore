@@ -41,3 +41,27 @@ report-*.json
 # Claude configuration with sensitive data
 .claude/
 config.json
+
+# User-specific configuration files (but keep the example)
+*.local.conf
+*.local.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+temp/
+tmp/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Testing
+.nyc_output/
+
+# Local data
+data/
+private/
