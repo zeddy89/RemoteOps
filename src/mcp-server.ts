@@ -11,6 +11,9 @@ import { DiagnosticRunner } from './lib/diagnostics.js';
 import { Troubleshooter } from './lib/troubleshooter.js';
 import { Reporter } from './lib/reporter.js';
 import { HyperVManager, CreateVMOptions } from './lib/hyperv-manager.js';
+import { connectionPool } from './lib/connection-pool.js';
+import { OSDetector } from './lib/os-detector.js';
+import { SystemMonitor } from './lib/system-monitor.js';
 
 // MCP Server for RemoteOps SSH diagnostics and troubleshooting
 class RemoteOpsServer {
@@ -348,6 +351,198 @@ class RemoteOpsServer {
               required: ['host', 'username', 'vmName', 'action'],
             },
           },
+          {
+            name: 'connection_pool_status',
+            description: 'Get the status of SSH connection pool',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+            },
+          },
+          {
+            name: 'connection_pool_disconnect',
+            description: 'Disconnect and remove a specific connection from the pool',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                host: {
+                  type: 'string',
+                  description: 'Server hostname or IP address',
+                },
+                port: {
+                  type: 'number',
+                  description: 'SSH port (default: 22)',
+                  default: 22,
+                },
+                username: {
+                  type: 'string',
+                  description: 'SSH username',
+                },
+                privateKey: {
+                  type: 'string',
+                  description: 'Path to private key file (optional)',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (optional)',
+                },
+              },
+              required: ['host', 'username'],
+            },
+          },
+          {
+            name: 'ssh_smart_command',
+            description: 'Execute a command using OS-appropriate syntax (PowerShell for Windows, bash for Linux)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                host: {
+                  type: 'string',
+                  description: 'Server hostname or IP address',
+                },
+                port: {
+                  type: 'number',
+                  description: 'SSH port (default: 22)',
+                  default: 22,
+                },
+                username: {
+                  type: 'string',
+                  description: 'SSH username',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (optional if using key)',
+                },
+                privateKey: {
+                  type: 'string',
+                  description: 'Path to private key file (optional if using password)',
+                },
+                passphrase: {
+                  type: 'string',
+                  description: 'Passphrase for encrypted private key (optional)',
+                },
+                command: {
+                  type: 'string',
+                  description: 'Command to execute (will be adapted for the detected OS)',
+                },
+              },
+              required: ['host', 'username', 'command'],
+            },
+          },
+          {
+            name: 'system_metrics',
+            description: 'Get comprehensive real-time system metrics (CPU, memory, disk, network, processes)',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                host: {
+                  type: 'string',
+                  description: 'Server hostname or IP address',
+                },
+                port: {
+                  type: 'number',
+                  description: 'SSH port (default: 22)',
+                  default: 22,
+                },
+                username: {
+                  type: 'string',
+                  description: 'SSH username',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (optional if using key)',
+                },
+                privateKey: {
+                  type: 'string',
+                  description: 'Path to private key file (optional if using password)',
+                },
+                passphrase: {
+                  type: 'string',
+                  description: 'Passphrase for encrypted private key (optional)',
+                },
+              },
+              required: ['host', 'username'],
+            },
+          },
+          {
+            name: 'process_monitor',
+            description: 'Monitor a specific process by PID or get top processes',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                host: {
+                  type: 'string',
+                  description: 'Server hostname or IP address',
+                },
+                port: {
+                  type: 'number',
+                  description: 'SSH port (default: 22)',
+                  default: 22,
+                },
+                username: {
+                  type: 'string',
+                  description: 'SSH username',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (optional if using key)',
+                },
+                privateKey: {
+                  type: 'string',
+                  description: 'Path to private key file (optional if using password)',
+                },
+                passphrase: {
+                  type: 'string',
+                  description: 'Passphrase for encrypted private key (optional)',
+                },
+                pid: {
+                  type: 'number',
+                  description: 'Process ID to monitor (optional - if not provided, returns top processes)',
+                },
+                limit: {
+                  type: 'number',
+                  description: 'Number of top processes to return (default: 10)',
+                  default: 10,
+                },
+              },
+              required: ['host', 'username'],
+            },
+          },
+          {
+            name: 'system_uptime',
+            description: 'Get system uptime and boot time information',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                host: {
+                  type: 'string',
+                  description: 'Server hostname or IP address',
+                },
+                port: {
+                  type: 'number',
+                  description: 'SSH port (default: 22)',
+                  default: 22,
+                },
+                username: {
+                  type: 'string',
+                  description: 'SSH username',
+                },
+                password: {
+                  type: 'string',
+                  description: 'SSH password (optional if using key)',
+                },
+                privateKey: {
+                  type: 'string',
+                  description: 'Path to private key file (optional if using password)',
+                },
+                passphrase: {
+                  type: 'string',
+                  description: 'Passphrase for encrypted private key (optional)',
+                },
+              },
+              required: ['host', 'username'],
+            },
+          },
         ],
       };
     });
@@ -374,6 +569,18 @@ class RemoteOpsServer {
             return await this.handleHypervVMInfo(args);
           case 'hyperv_control_vm':
             return await this.handleHypervControlVM(args);
+          case 'connection_pool_status':
+            return await this.handleConnectionPoolStatus(args);
+          case 'connection_pool_disconnect':
+            return await this.handleConnectionPoolDisconnect(args);
+          case 'ssh_smart_command':
+            return await this.handleSshSmartCommand(args);
+          case 'system_metrics':
+            return await this.handleSystemMetrics(args);
+          case 'process_monitor':
+            return await this.handleProcessMonitor(args);
+          case 'system_uptime':
+            return await this.handleSystemUptime(args);
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -406,11 +613,9 @@ class RemoteOpsServer {
 
   private async handleSshConnectDiagnose(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const diagnosticRunner = new DiagnosticRunner(client);
       const troubleshooter = new Troubleshooter(client);
       const reporter = new Reporter();
@@ -427,8 +632,6 @@ class RemoteOpsServer {
       // Get system info for context
       const systemInfo = (await client.executeCommand('uname -a && hostname && uptime')).stdout;
       
-      client.disconnect();
-      
       return {
         content: [
           {
@@ -438,18 +641,15 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
       throw error;
     }
   }
 
   private async handleSshTroubleshoot(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const troubleshooter = new Troubleshooter(client);
       const reporter = new Reporter();
       
@@ -461,8 +661,6 @@ class RemoteOpsServer {
         const diagnosticRunner = new DiagnosticRunner(client);
         const diagnosticResults = await diagnosticRunner.runBasicSystemChecks();
         const formattedResults = reporter.formatDiagnosticResults(diagnosticResults);
-        
-        client.disconnect();
         
         return {
           content: [
@@ -481,8 +679,6 @@ class RemoteOpsServer {
         results.push(reporter.formatActionResult(action.name, output));
       }
       
-      client.disconnect();
-      
       return {
         content: [
           {
@@ -492,22 +688,17 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
       throw error;
     }
   }
 
   private async handleSshCheckUpdates(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const diagnosticRunner = new DiagnosticRunner(client);
       const updateResult = await diagnosticRunner.checkPendingUpdates();
-      
-      client.disconnect();
       
       return {
         content: [
@@ -518,21 +709,16 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
       throw error;
     }
   }
 
   private async handleSshRunCommand(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const { stdout, stderr, code } = await client.executeCommand(args.command);
-      
-      client.disconnect();
       
       return {
         content: [
@@ -543,7 +729,6 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
       throw error;
     }
   }
@@ -554,9 +739,7 @@ class RemoteOpsServer {
     for (const serverConfig of args.servers) {
       try {
         const config = this.createSSHConfig(serverConfig);
-        const client = new SSHClient(config);
-        
-        await client.connect();
+        const client = await connectionPool.getConnection(serverConfig.host, config);
         
         const diagnosticRunner = new DiagnosticRunner(client);
         const diagnosticResults = await diagnosticRunner.runBasicSystemChecks();
@@ -570,8 +753,6 @@ class RemoteOpsServer {
         const status = hasErrors ? '❌ ERRORS' : hasWarnings ? '⚠️ WARNINGS' : '✅ HEALTHY';
         
         results.push(`## ${serverConfig.host} - ${status}\n\n${formattedResults}`);
-        
-        client.disconnect();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         results.push(`## ${serverConfig.host} - ❌ CONNECTION FAILED\n\nError: ${errorMessage}`);
@@ -632,15 +813,11 @@ class RemoteOpsServer {
 
   private async handleHypervVMInfo(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const hyperv = new HyperVManager(client);
       const vmInfo = await hyperv.getVMDetails(args.vmName);
-      
-      client.disconnect();
       
       const stateIcon = vmInfo.state === 'Running' ? '🟢' : (vmInfo.state === 'Off' ? '🔴' : '🟡');
       
@@ -653,18 +830,15 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
       throw error;
     }
   }
 
   private async handleHypervControlVM(args: any) {
     const config = this.createSSHConfig(args);
-    const client = new SSHClient(config);
+    const client = await connectionPool.getConnection(args.host, config);
     
     try {
-      await client.connect();
-      
       const hyperv = new HyperVManager(client);
       
       switch (args.action) {
@@ -681,8 +855,6 @@ class RemoteOpsServer {
           throw new Error(`Unknown action: ${args.action}`);
       }
       
-      client.disconnect();
-      
       return {
         content: [
           {
@@ -692,7 +864,209 @@ class RemoteOpsServer {
         ],
       };
     } catch (error) {
-      client.disconnect();
+      throw error;
+    }
+  }
+
+  private async handleConnectionPoolStatus(args: any) {
+    try {
+      const status = connectionPool.getPoolStatus();
+      
+      const connectionList = status.connections.map(conn => {
+        const statusIcon = conn.isConnected ? '🟢' : '🔴';
+        const osIcon = conn.osType === 'windows' ? '🪟' : conn.osType === 'linux' ? '🐧' : '🖥️';
+        const lastUsedAgo = Math.round((Date.now() - conn.lastUsed.getTime()) / 1000);
+        const osInfo = conn.osType ? ` ${osIcon} ${conn.osType} (${conn.shell})` : '';
+        return `${statusIcon} **${conn.host}** (${conn.username})${osInfo} - Last used: ${lastUsedAgo}s ago`;
+      }).join('\n');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `# SSH Connection Pool Status\n\n**Total Connections**: ${status.totalConnections}\n**Active Connections**: ${status.activeConnections}\n\n## Connections:\n${connectionList || 'No connections in pool'}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleConnectionPoolDisconnect(args: any) {
+    try {
+      const config = this.createSSHConfig(args);
+      await connectionPool.removeConnection(args.host, config);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `# Connection Removed\n\n✅ Successfully disconnected and removed connection to **${args.host}** from the pool.`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleSshSmartCommand(args: any) {
+    const config = this.createSSHConfig(args);
+    const client = await connectionPool.getConnection(args.host, config);
+    
+    try {
+      // Get OS info from connection pool
+      const osInfo = connectionPool.getOSInfo(args.host, config);
+      
+      if (!osInfo) {
+        // Fallback: detect OS if not available
+        const detectedOS = await OSDetector.detectOS(client, args.host);
+        var formattedCommand = OSDetector.formatCommand(detectedOS, args.command);
+        var osDisplay = `${detectedOS.type} (${detectedOS.shell})`;
+      } else {
+        var formattedCommand = OSDetector.formatCommand(osInfo, args.command);
+        var osDisplay = `${osInfo.type} (${osInfo.shell})`;
+      }
+      
+      const { stdout, stderr, code } = await client.executeCommand(formattedCommand);
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `# Smart Command Execution on ${args.host}\n\n**Detected OS**: ${osDisplay}\n**Original Command**: \`${args.command}\`\n**Executed Command**: \`${formattedCommand}\`\n**Exit Code**: ${code}\n\n**Output**:\n\`\`\`\n${stdout || stderr}\n\`\`\``,
+          },
+        ],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleSystemMetrics(args: any) {
+    const config = this.createSSHConfig(args);
+    const client = await connectionPool.getConnection(args.host, config);
+    
+    try {
+      // Get OS info from connection pool
+      const osInfo = connectionPool.getOSInfo(args.host, config);
+      if (!osInfo) {
+        throw new Error('OS detection required for system metrics');
+      }
+
+      const monitor = new SystemMonitor(client, osInfo);
+      const metrics = await monitor.getSystemMetrics(args.host);
+      
+      // Format metrics for display
+      const cpuInfo = `**CPU Usage**: ${metrics.cpu.usage}% (${metrics.cpu.cores} cores)${metrics.cpu.loadAverage ? ` | **Load**: ${metrics.cpu.loadAverage.join(', ')}` : ''}`;
+      
+      const memoryInfo = `**Memory**: ${metrics.memory.used}MB / ${metrics.memory.total}MB (${metrics.memory.percentage}% used) | **Available**: ${metrics.memory.available}MB`;
+      
+      const diskInfo = metrics.disk.map(disk => 
+        `**${disk.device}** (${disk.mountPoint}): ${disk.used}GB / ${disk.total}GB (${disk.percentage}% used)`
+      ).join('\n');
+      
+      const processInfo = metrics.processes.slice(0, 5).map(proc => 
+        `**${proc.name}** (PID: ${proc.pid}) - CPU: ${proc.cpu}%, Memory: ${proc.memory}MB, User: ${proc.user}`
+      ).join('\n');
+
+      const networkInfo = metrics.network.interfaces.slice(0, 3).map(iface => 
+        `**${iface.name}**: ↓${Math.round(iface.bytesIn / 1024)}KB ↑${Math.round(iface.bytesOut / 1024)}KB`
+      ).join('\n');
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `# System Metrics for ${args.host}\n\n🕐 **Collected**: ${metrics.timestamp.toLocaleString()}\n\n## 🖥️ CPU\n${cpuInfo}\n\n## 💾 Memory\n${memoryInfo}\n\n## 💽 Disk Usage\n${diskInfo}\n\n## 🌐 Network Interfaces\n${networkInfo || 'No network data available'}\n\n## 🔝 Top Processes\n${processInfo}`,
+          },
+        ],
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleProcessMonitor(args: any) {
+    const config = this.createSSHConfig(args);
+    const client = await connectionPool.getConnection(args.host, config);
+    
+    try {
+      // Get OS info from connection pool
+      const osInfo = connectionPool.getOSInfo(args.host, config);
+      if (!osInfo) {
+        throw new Error('OS detection required for process monitoring');
+      }
+
+      const monitor = new SystemMonitor(client, osInfo);
+      
+      if (args.pid) {
+        // Monitor specific process
+        const process = await monitor.monitorProcess(args.pid);
+        if (process) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `# Process Monitor: ${process.name} (PID: ${process.pid})\n\n**Name**: ${process.name}\n**PID**: ${process.pid}\n**CPU Usage**: ${process.cpu}%\n**Memory Usage**: ${process.memory}MB\n**User**: ${process.user}\n**Status**: ${process.status}${process.startTime ? `\n**Start Time**: ${process.startTime}` : ''}${process.commandLine ? `\n**Command**: ${process.commandLine}` : ''}`,
+              },
+            ],
+          };
+        } else {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `# Process Monitor\n\n❌ Process with PID ${args.pid} not found on ${args.host}`,
+              },
+            ],
+          };
+        }
+      } else {
+        // Get top processes
+        const processes = await monitor.getTopProcesses(args.limit || 10);
+        const processInfo = processes.map((proc, index) => 
+          `${index + 1}. **${proc.name}** (PID: ${proc.pid}) - CPU: ${proc.cpu}%, Memory: ${proc.memory}MB, User: ${proc.user}`
+        ).join('\n');
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `# Top Processes on ${args.host}\n\n🔝 **Showing top ${processes.length} processes by CPU usage:**\n\n${processInfo}`,
+            },
+          ],
+        };
+      }
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private async handleSystemUptime(args: any) {
+    const config = this.createSSHConfig(args);
+    const client = await connectionPool.getConnection(args.host, config);
+    
+    try {
+      // Get OS info from connection pool
+      const osInfo = connectionPool.getOSInfo(args.host, config);
+      if (!osInfo) {
+        throw new Error('OS detection required for uptime monitoring');
+      }
+
+      const monitor = new SystemMonitor(client, osInfo);
+      const uptime = await monitor.getSystemUptime();
+      
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `# System Uptime for ${args.host}\n\n⏰ **Uptime**: ${uptime.uptime}\n${uptime.bootTime ? `🚀 **Boot Time**: ${uptime.bootTime.toLocaleString()}` : ''}`,
+          },
+        ],
+      };
+    } catch (error) {
       throw error;
     }
   }
