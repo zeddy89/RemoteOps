@@ -9,7 +9,7 @@ A powerful SSH client for server diagnostics, troubleshooting, and infrastructur
 ### 🤖 **AI Integration (MCP Server)**
 - **Natural Language Interface**: "Check disk space on my production server"
 - **Intelligent Workflows**: AI can chain operations and analyze results
-- **8 Powerful Tools** available to AI models:
+- **13 Powerful Tools** available to AI models:
   - System diagnostics and troubleshooting
   - Multi-server management  
   - Custom command execution
@@ -80,20 +80,29 @@ Create or update `.claude.json` in your project directory:
 2. **ssh_troubleshoot** - Issue-specific troubleshooting  
 3. **ssh_check_updates** - Check for system updates
 4. **ssh_run_command** - Execute custom commands
-5. **ssh_multi_diagnose** - Multi-server diagnostics
-6. **hyperv_list_vms** - List Hyper-V VMs
-7. **hyperv_vm_info** - Get VM details
-8. **hyperv_control_vm** - Start/stop VMs
+5. **ssh_smart_command** - OS-aware command execution (PowerShell/bash)
+6. **ssh_multi_diagnose** - Multi-server diagnostics
+7. **system_metrics** - Real-time CPU, memory, disk, network monitoring
+8. **process_monitor** - Monitor processes by PID or get top processes
+9. **system_uptime** - System availability and boot time information
+10. **hyperv_list_vms** - List Hyper-V VMs
+11. **hyperv_vm_info** - Get VM details
+12. **hyperv_control_vm** - Start/stop VMs
+13. **connection_pool_status** - View SSH connection pool status
 
 #### Example AI Interactions
 
 Once configured, you can interact naturally:
 
 - *"Run diagnostics on my production server at 192.168.1.214 using root/password"*
+- *"Get real-time system metrics for my Linux server - CPU, memory, disk, and network"*
 - *"Check what's causing high CPU usage on server X"* 
+- *"Monitor process PID 1234 on my Windows server"*
+- *"Show me the top 10 processes consuming the most resources"*
 - *"List all my Hyper-V virtual machines on my Windows host"*
 - *"Start the VM named 'development-server'"*
 - *"Check disk space on all my servers"*
+- *"Show me the connection pool status and which servers are connected"*
 
 ### 🖥️ Traditional CLI Mode
 

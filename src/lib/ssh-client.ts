@@ -277,4 +277,11 @@ export class SSHClient {
       this.isConnected = false;
     }
   }
+
+  /**
+   * Check if the SSH connection is currently active
+   */
+  get connected(): boolean {
+    return this.isConnected;
+  }
 }
