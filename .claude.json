@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "remoteops": {
+      "command": "node",
+      "args": ["dist/mcp-server.js"],
+      "cwd": "/Users/slewis/Documents/git_projects/RemoteOps",
+      "env": {},
+      "alwaysAllow": []
+    }
+  }
+}

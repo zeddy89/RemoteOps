@@ -5,11 +5,11 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { SSHClient, SSHConnectionConfig } from './lib/ssh-client';
-import { DiagnosticRunner, DiagnosticResult } from './lib/diagnostics';
-import { Troubleshooter } from './lib/troubleshooter';
-import { Reporter } from './lib/reporter';
-import { HyperVManager, CreateVMOptions } from './lib/hyperv-manager';
+import { SSHClient, SSHConnectionConfig } from './lib/ssh-client.js';
+import { DiagnosticRunner, DiagnosticResult } from './lib/diagnostics.js';
+import { Troubleshooter } from './lib/troubleshooter.js';
+import { Reporter } from './lib/reporter.js';
+import { HyperVManager, CreateVMOptions } from './lib/hyperv-manager.js';
 
 // Define program version and description
 program
@@ -369,15 +369,8 @@ async function promptForMissingConfig(options: any): Promise<SSHConnectionConfig
     });
   }
   
-  if (!options.port) {
-    questions.push({
-      type: 'input',
-      name: 'port',
-      message: 'SSH port:',
-      default: '22',
-      validate: (input: string) => /^\d+$/.test(input) ? true : 'Port must be a number'
-    });
-  }
+  // Port is optional - SSH client defaults to 22 if not specified
+  // Only prompt if user specifically wants to set a custom port
   
   if (!options.username) {
     const defaultUser = os.userInfo().username;
@@ -394,8 +387,7 @@ async function promptForMissingConfig(options: any): Promise<SSHConnectionConfig
     // Use the direct password if provided
     return {
       host: options.host || (await inquirer.prompt(questions.filter(q => q.name === 'host'))).host,
-      port: parseInt(options.port || (questions.some(q => q.name === 'port') ? 
-            (await inquirer.prompt(questions.filter(q => q.name === 'port'))).port : '22'), 10),
+      port: options.port ? parseInt(options.port, 10) : undefined, // Let SSH client default to 22
       username: options.username || (questions.some(q => q.name === 'username') ? 
                (await inquirer.prompt(questions.filter(q => q.name === 'username'))).username : os.userInfo().username),
       password: options.pwd,
@@ -565,7 +557,7 @@ async function promptForMissingConfig(options: any): Promise<SSHConnectionConfig
   // Prepare the config object
   const config: SSHConnectionConfig = {
     host: options.host || answers.host,
-    port: parseInt(options.port || answers.port, 10),
+    port: options.port ? parseInt(options.port, 10) : undefined, // Let SSH client default to 22
     username: options.username || answers.username,
     useAgent: options.agent !== false && authMethod === 'agent'
   };

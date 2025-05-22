@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { DiagnosticResult } from './diagnostics';
+import { DiagnosticResult } from './diagnostics.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

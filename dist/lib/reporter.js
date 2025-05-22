@@ -1,52 +1,13 @@
-"use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Reporter = void 0;
-const chalk_1 = __importDefault(require("chalk"));
-const fs = __importStar(require("fs"));
-const path = __importStar(require("path"));
-class Reporter {
+import chalk from 'chalk';
+import * as fs from 'fs';
+import * as path from 'path';
+export class Reporter {
     formatDiagnosticResults(results) {
-        let output = chalk_1.default.bold.underline('Diagnostic Results:\n\n');
+        let output = chalk.bold.underline('Diagnostic Results:\n\n');
         results.forEach(result => {
-            const statusColor = result.status === 'success' ? chalk_1.default.green :
-                result.status === 'warning' ? chalk_1.default.yellow :
-                    chalk_1.default.red;
+            const statusColor = result.status === 'success' ? chalk.green :
+                result.status === 'warning' ? chalk.yellow :
+                    chalk.red;
             output += statusColor(`[${result.status.toUpperCase()}] ${result.name}\n`);
             output += '--------------------------------\n';
             output += this.formatCommandOutput(result.output);
@@ -55,14 +16,14 @@ class Reporter {
         return output;
     }
     formatActionResult(name, output) {
-        let result = chalk_1.default.bold.underline(`Action: ${name}\n\n`);
+        let result = chalk.bold.underline(`Action: ${name}\n\n`);
         result += this.formatCommandOutput(output);
         return result;
     }
     formatCommandOutput(output) {
         // Split output into lines and add line numbers
         return output.split('\n')
-            .map((line, index) => `${chalk_1.default.dim(`${index + 1}`.padStart(4))} | ${line}`)
+            .map((line, index) => `${chalk.dim(`${index + 1}`.padStart(4))} | ${line}`)
             .join('\n');
     }
     saveReportToFile(reportData, fileName) {
@@ -180,4 +141,3 @@ class Reporter {
         return reportPath;
     }
 }
-exports.Reporter = Reporter;

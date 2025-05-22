@@ -1,5 +1,5 @@
-import { SSHClient } from './ssh-client';
-import { DiagnosticResult } from './diagnostics';
+import { SSHClient } from './ssh-client.js';
+import { DiagnosticResult } from './diagnostics.js';
 
 export interface TroubleshootingAction {
   name: string;

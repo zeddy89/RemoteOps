@@ -1,4 +1,4 @@
-import { SSHClient } from './ssh-client';
+import { SSHClient } from './ssh-client.js';
 
 export interface DiagnosticResult {
   name: string;

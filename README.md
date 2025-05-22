@@ -1,23 +1,31 @@
 # RemoteOps
 
-A powerful SSH client for server diagnostics, troubleshooting, and infrastructure management. This tool helps you connect to remote servers, run diagnostics, troubleshoot issues, execute commands, and manage Hyper-V virtual machines - all from a simple interactive interface.
+A powerful SSH client for server diagnostics, troubleshooting, and infrastructure management. RemoteOps now supports both traditional CLI usage and AI integration through the Model Context Protocol (MCP), allowing AI models like Claude to manage your infrastructure through natural language.
 
-> **Note:** This tool is specifically designed to work with the Anthropic Claude Code environment, providing an easy way to troubleshoot and diagnose issues on remote servers.
+> **🚀 New**: Now available as an MCP server for AI-powered infrastructure management!
 
 ## Features
 
-- **SSH Connection Management**: Secure connections to remote servers with key-based or password authentication
-- **Comprehensive Diagnostics**: Automated checks for system health, disk space, memory usage, CPU load, and more
-- **Intelligent Troubleshooting**: Suggests and executes appropriate actions based on diagnostic results
-- **Issue-Specific Tools**: Target specific problems like disk space issues, network problems, etc.
-- **Interactive Shell**: Open an interactive shell session when needed
-- **Detailed Reporting**: Generate HTML or JSON reports of findings
-- **User-Friendly Interface**: Interactive prompts guide you through the process
-- **Windows Hyper-V Management**: Create and manage virtual machines on Windows hosts from any platform
-- **ISO Management**: Attach and detach ISO files to VMs for OS installation
-- **Updates Management**: Check for and install system updates on remote servers
-- **Multi-Server Operations**: Execute commands or run diagnostics on multiple servers simultaneously
-- **Non-Interactive Mode**: Run commands in automated scripts without user prompts
+### 🤖 **AI Integration (MCP Server)**
+- **Natural Language Interface**: "Check disk space on my production server"
+- **Intelligent Workflows**: AI can chain operations and analyze results
+- **8 Powerful Tools** available to AI models:
+  - System diagnostics and troubleshooting
+  - Multi-server management  
+  - Custom command execution
+  - Update checking
+  - Hyper-V VM management
+
+### 🛠️ **Traditional CLI Features**
+- **SSH Connection Management**: Secure connections with key-based or password authentication
+- **Comprehensive Diagnostics**: Automated system health, disk space, memory, CPU checks
+- **Intelligent Troubleshooting**: Suggests and executes appropriate actions
+- **Issue-Specific Tools**: Target problems like disk space, network issues, etc.
+- **Interactive Shell**: Open shell sessions when needed
+- **Detailed Reporting**: Generate HTML or JSON reports
+- **Windows Hyper-V Management**: Create and manage VMs from any platform
+- **Multi-Server Operations**: Execute commands on multiple servers simultaneously
+- **Non-Interactive Mode**: Perfect for automation and scripts
 
 ## Installation
 
@@ -36,11 +44,68 @@ npm run build
 npm link
 ```
 
-## Usage
+## Usage Modes
 
-### Connect and Diagnose
+### 🤖 MCP Server Mode (AI Integration)
 
-Connect to a server and run basic diagnostics:
+Run as an MCP server for AI model integration:
+
+```bash
+npm start
+# or
+node dist/mcp-server.js
+```
+
+#### Configure with Claude Code
+
+Create or update `.claude.json` in your project directory:
+
+```json
+{
+  "mcpServers": {
+    "remoteops": {
+      "command": "node",
+      "args": ["dist/mcp-server.js"],
+      "cwd": "/path/to/RemoteOps",
+      "env": {},
+      "alwaysAllow": []
+    }
+  }
+}
+```
+
+#### Available MCP Tools
+
+1. **ssh_connect_diagnose** - Full system diagnostics
+2. **ssh_troubleshoot** - Issue-specific troubleshooting  
+3. **ssh_check_updates** - Check for system updates
+4. **ssh_run_command** - Execute custom commands
+5. **ssh_multi_diagnose** - Multi-server diagnostics
+6. **hyperv_list_vms** - List Hyper-V VMs
+7. **hyperv_vm_info** - Get VM details
+8. **hyperv_control_vm** - Start/stop VMs
+
+#### Example AI Interactions
+
+Once configured, you can interact naturally:
+
+- *"Run diagnostics on my production server at 192.168.1.214 using root/password"*
+- *"Check what's causing high CPU usage on server X"* 
+- *"List all my Hyper-V virtual machines on my Windows host"*
+- *"Start the VM named 'development-server'"*
+- *"Check disk space on all my servers"*
+
+### 🖥️ Traditional CLI Mode
+
+Run traditional CLI commands:
+
+```bash
+npm run start:cli
+# or
+node dist/index.js
+```
+
+#### Connect and Diagnose
 
 ```bash
 remoteops connect --host example.com --username myuser
@@ -52,225 +117,185 @@ Options:
 - `-u, --username <username>`: SSH username
 - `-k, --key <key_path>`: Path to private key file
 - `-P, --password`: Use password authentication
-- `-r, --report <format>`: Generate report in a specific format (json, html)
+- `-r, --report <format>`: Generate report (json, html)
 
-### Troubleshoot Specific Issues
-
-Directly troubleshoot a specific issue:
+#### Troubleshoot Specific Issues
 
 ```bash
 remoteops troubleshoot --host example.com --issue "disk space"
 ```
 
-Options:
-- Same connection options as the `connect` command
-- `-i, --issue <issue>`: Description of the issue (e.g., "slow performance", "disk space")
-
-### Run Custom Commands
-
-Execute a custom command on the server:
+#### Run Custom Commands
 
 ```bash
 remoteops run --host example.com --command "ps aux | grep nginx"
 ```
 
-Options:
-- Same connection options as the `connect` command
-- `-c, --command <command>`: Command to execute
-
-### Check for System Updates
-
-Check for pending system updates on a server:
+#### Check for System Updates
 
 ```bash
 remoteops updates --host example.com --username myuser
 ```
 
-Options:
-- Same connection options as the `connect` command
+#### Multiple Server Operations
 
-### Multiple Server Operations
-
-#### Run Command on Multiple Servers
-
-Execute the same command on multiple servers simultaneously:
-
+Run command on multiple servers:
 ```bash
 remoteops multi --hosts "server1.com,server2.com,192.168.1.10" --username admin --command "uptime"
 ```
 
-Options:
-- `-h, --hosts <hosts>`: Comma-separated list of hostnames or IP addresses
-- Same connection options as other commands
-- `-c, --command <command>`: Command to execute on all servers
-
-#### Run Diagnostics on Multiple Servers
-
-Run system diagnostics on multiple servers simultaneously:
-
+Run diagnostics on multiple servers:
 ```bash
 remoteops multi-diag --hosts "server1.com,server2.com" --username admin --report html
 ```
 
-Options:
-- `-h, --hosts <hosts>`: Comma-separated list of hostnames or IP addresses
-- Same connection options as other commands
-- `-r, --report <format>`: Generate reports for each server (json, html)
+#### Hyper-V Management
 
-### Hyper-V Management
-
-#### List and Manage VMs
-
-List and manage Hyper-V virtual machines on a Windows host:
-
+List and manage VMs:
 ```bash
 remoteops hyperv --host windows-server.com --username admin --list
 ```
 
-Options:
-- `-l, --list`: List all VMs
-- `-i, --info <name>`: Get detailed information about a VM
-- `-s, --start <name>`: Start a VM
-- `-S, --stop <name>`: Stop a VM
-- `-f, --force`: Force stop a VM (use with --stop)
-- `--delete <name>`: Delete a VM
-- `--remove-disks`: Remove disks when deleting a VM (use with --delete)
-- `--host-info`: Get information about the Hyper-V host
-- `--switches`: List all virtual switches
-- `--attach-iso <name>`: Attach an ISO file to a VM
-- `--iso-path <path>`: Path to the ISO file (use with --attach-iso)
-
-#### Create a New VM
-
-Create a new virtual machine on a Windows Hyper-V host:
-
+Create a new VM:
 ```bash
 remoteops hyperv-create --host windows-server.com --username admin --name "UbuntuVM" --memory 4 --cpu 2 --disk 60 --iso "C:\path\to\ubuntu.iso"
 ```
 
-Options:
-- `-n, --name <name>`: Name for the new VM
-- `-m, --memory <memory>`: Memory in GB for the VM
-- `-c, --cpu <count>`: Number of CPU cores for the VM
-- `-d, --disk <size>`: Disk size in GB for the VM
-- `-s, --switch <name>`: Virtual switch to connect the VM to
-- `-g, --generation <number>`: VM generation (1 or 2, default: 2)
-- `-i, --iso <path>`: Path to ISO file for OS installation
-- `--vhd <path>`: Custom path for the virtual hard disk
+VM Management Options:
+- `-l, --list`: List all VMs
+- `-i, --info <name>`: Get VM details
+- `-s, --start <name>`: Start a VM
+- `-S, --stop <name>`: Stop a VM
+- `-f, --force`: Force stop (use with --stop)
+- `--delete <name>`: Delete a VM
+- `--host-info`: Get host information
+- `--switches`: List virtual switches
+- `--attach-iso <name>`: Attach ISO to VM
 
 ## Authentication Methods
 
-The client supports multiple authentication methods:
-
 ### SSH Key Authentication (Recommended)
-
-Use your SSH private key for secure authentication:
 
 ```bash
 remoteops connect --host example.com --key ~/.ssh/id_rsa
 ```
 
-If your key requires a passphrase:
-
+With passphrase:
 ```bash
 remoteops connect --host example.com --key ~/.ssh/id_rsa --passphrase "your-passphrase"
 ```
 
 ### SSH Config File
 
-Leverage your existing SSH config file:
-
 ```bash
 remoteops connect --host example.com --config ~/.ssh/config
 ```
 
-This will use all settings from your SSH config file including hostname, port, user, and identity files.
-
 ### SSH Agent
 
-Use your SSH agent for passwordless authentication:
-
 ```bash
-ssh-add ~/.ssh/id_rsa  # Add your key to the SSH agent first
+ssh-add ~/.ssh/id_rsa  # Add key to agent first
 remoteops connect --host example.com
 ```
 
 ### Password Authentication
 
-For cases where key authentication isn't possible:
-
 ```bash
 remoteops connect --host example.com -P  # Will prompt for password
 ```
 
-Or non-interactively (less secure):
-
+Or non-interactively:
 ```bash
 remoteops connect --host example.com --pwd "your-password"
 ```
 
 ## Interactive Mode
 
-If you run any command without all required options, the client will prompt you interactively for the missing information.
+Run commands without options for guided setup:
 
-Example:
 ```bash
 remoteops connect
 ```
 
-This will guide you through an interactive setup process with prompts for:
+This prompts for:
 - Server hostname
-- SSH port
+- SSH port (defaults to 22)
 - Username
-- Authentication method (SSH agent, SSH config, private key, or password)
-- Selection of available private keys (if using key authentication)
-- Passphrase for your key (if required)
-- Password (if using password authentication)
+- Authentication method
+- Key selection (if using keys)
+- Passphrase/password (if required)
 
 ## Diagnostic Capabilities
 
-The client can check and report on:
+The system checks and reports on:
 
-- System information
-- Disk space usage
-- Memory utilization
-- CPU load
-- Network status
-- Running processes
-- System logs
-- Service status
+- System information and uptime
+- Disk space usage and available storage
+- Memory utilization and swap usage
+- CPU load and running processes
+- Network status and connectivity
+- System logs and recent errors
+- Service status and health
+- Pending system updates
 
-## Troubleshooting Capabilities
+## Troubleshooting Features
 
-Based on diagnostic results, the client can suggest and execute actions like:
+AI-powered and rule-based suggestions for:
 
 - Cleaning up disk space
-- Finding large files
+- Finding large files and directories
 - Identifying memory-intensive processes
-- Checking network connectivity
+- Checking network connectivity issues
 - Analyzing recent error logs
-- Verifying service status
+- Verifying critical service status
+- Performance optimization recommendations
 
 ## Development
 
 ### Project Structure
 
-- `src/index.ts`: Main CLI application
+- `src/mcp-server.ts`: MCP server for AI integration
+- `src/index.ts`: Traditional CLI application
 - `src/lib/ssh-client.ts`: SSH connection management
 - `src/lib/diagnostics.ts`: System diagnostic tools
 - `src/lib/troubleshooter.ts`: Troubleshooting logic
 - `src/lib/reporter.ts`: Report generation
-- `src/lib/hyperv-manager.ts`: Hyper-V virtual machine management
+- `src/lib/hyperv-manager.ts`: Hyper-V VM management
 
-### Build and Test
+### Build and Development
 
 ```bash
 # Build TypeScript
 npm run build
 
+# Run MCP server in development
+npm run dev
+
+# Run CLI in development  
+npm run dev:cli
+
 # Run tests
 npm test
 ```
+
+### Package.json Scripts
+
+- `npm start`: Run MCP server
+- `npm run start:cli`: Run traditional CLI
+- `npm run dev`: Development MCP server
+- `npm run dev:cli`: Development CLI
+- `npm run build`: Build TypeScript
+
+## MCP vs CLI Comparison
+
+| Feature | MCP Server | CLI |
+|---------|------------|-----|
+| **Interface** | Natural language via AI | Command-line flags |
+| **Integration** | AI models (Claude, etc.) | Terminal/scripts |
+| **Workflow** | AI can chain operations | Manual command execution |
+| **Learning Curve** | Conversational | Requires memorizing commands |
+| **Automation** | AI-driven intelligence | Script-based |
+| **Use Cases** | Interactive exploration, complex workflows | Scripting, automation |
 
 ## License
 
@@ -280,30 +305,27 @@ MIT
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Using with Claude Code
+## AI-Powered Infrastructure Management
 
-This tool is designed to work seamlessly with Claude Code, allowing you to manage remote servers directly from your chat interface.
+RemoteOps transforms traditional server management by enabling AI models to:
 
-### Example workflows:
+1. **Understand Context**: AI interprets your infrastructure needs
+2. **Execute Intelligently**: Chains appropriate diagnostic and management commands
+3. **Provide Insights**: Analyzes results and suggests optimizations
+4. **Learn Patterns**: Adapts to your infrastructure and preferences
 
-1. **Basic server diagnostics:**
-   ```
-   ./dist/index.js connect --host your-server.com --username admin
-   ```
+### Example AI Workflows
 
-2. **Create and manage a Hyper-V VM from macOS:**
-   ```
-   ./dist/index.js hyperv-create --host windows-host.com --username admin --name "UbuntuVM" --memory 4 --cpu 2 --disk 60
-   ./dist/index.js hyperv --host windows-host.com --username admin --attach-iso "UbuntuVM" --iso-path "F:\isos\ubuntu.iso"
-   ./dist/index.js hyperv --host windows-host.com --username admin --start "UbuntuVM"
-   ```
+**Comprehensive Health Check:**
+> "Check the health of my production environment - servers 192.168.1.10, 192.168.1.11, and 192.168.1.12"
 
-3. **Run a command on multiple servers:**
-   ```
-   ./dist/index.js multi --hosts "server1.com,server2.com,192.168.1.10" --username admin --command "df -h"
-   ```
+**Intelligent Troubleshooting:**
+> "My application is running slow. Can you check server performance and suggest fixes?"
 
-4. **Check for updates on a Windows server:**
-   ```
-   ./dist/index.js run --host windows-server.com --username admin --command "systeminfo"
-   ```
+**VM Management:**
+> "Create a new Ubuntu VM on my Windows host with 8GB RAM and 100GB disk, then install Ubuntu Server"
+
+**Multi-Server Operations:**
+> "Update all my servers and restart any services that need it"
+
+This represents the future of infrastructure management - where natural language meets powerful automation! 🚀
