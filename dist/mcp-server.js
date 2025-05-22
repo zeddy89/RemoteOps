@@ -531,6 +531,74 @@ class RemoteOpsServer {
                             required: ['host', 'username'],
                         },
                     },
+                    {
+                        name: 'ssh_multi_command',
+                        description: 'Execute the same command on multiple servers simultaneously',
+                        inputSchema: {
+                            type: 'object',
+                            properties: {
+                                command: {
+                                    type: 'string',
+                                    description: 'Command to execute on all servers',
+                                },
+                                servers: {
+                                    type: 'array',
+                                    description: 'List of servers to execute the command on',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            host: {
+                                                type: 'string',
+                                                description: 'Server hostname or IP address',
+                                            },
+                                            port: {
+                                                type: 'number',
+                                                description: 'SSH port (default: 22)',
+                                                default: 22,
+                                            },
+                                            username: {
+                                                type: 'string',
+                                                description: 'SSH username',
+                                            },
+                                            password: {
+                                                type: 'string',
+                                                description: 'SSH password (optional if using key)',
+                                            },
+                                            privateKey: {
+                                                type: 'string',
+                                                description: 'Path to private key file (optional if using password)',
+                                            },
+                                            passphrase: {
+                                                type: 'string',
+                                                description: 'Passphrase for encrypted private key (optional)',
+                                            },
+                                            label: {
+                                                type: 'string',
+                                                description: 'Optional label for this server (defaults to hostname)',
+                                            },
+                                        },
+                                        required: ['host', 'username'],
+                                    },
+                                },
+                                timeout: {
+                                    type: 'number',
+                                    description: 'Timeout in seconds for each command (default: 30)',
+                                    default: 30,
+                                },
+                                parallel: {
+                                    type: 'boolean',
+                                    description: 'Execute commands in parallel (true) or sequentially (false, default: true)',
+                                    default: true,
+                                },
+                                precheck: {
+                                    type: 'boolean',
+                                    description: 'Test connectivity to all servers before executing commands (default: false)',
+                                    default: false,
+                                },
+                            },
+                            required: ['command', 'servers'],
+                        },
+                    },
                 ],
             };
         });
@@ -567,6 +635,8 @@ class RemoteOpsServer {
                         return await this.handleProcessMonitor(args);
                     case 'system_uptime':
                         return await this.handleSystemUptime(args);
+                    case 'ssh_multi_command':
+                        return await this.handleSshMultiCommand(args);
                     default:
                         throw new Error(`Unknown tool: ${name}`);
                 }
@@ -891,33 +961,43 @@ class RemoteOpsServer {
     }
     async handleSystemMetrics(args) {
         const config = this.createSSHConfig(args);
-        const client = await connectionPool.getConnection(args.host, config);
-        try {
-            // Get OS info from connection pool
-            const osInfo = connectionPool.getOSInfo(args.host, config);
-            if (!osInfo) {
-                throw new Error('OS detection required for system metrics');
+        // Retry logic for connection issues
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const client = await connectionPool.getConnection(args.host, config);
+                // Get OS info from connection pool
+                const osInfo = connectionPool.getOSInfo(args.host, config);
+                if (!osInfo) {
+                    throw new Error('OS detection required for system metrics');
+                }
+                const monitor = new SystemMonitor(client, osInfo);
+                const metrics = await monitor.getSystemMetrics(args.host);
+                // Format metrics for display
+                const cpuInfo = `**CPU Usage**: ${metrics.cpu.usage}% (${metrics.cpu.cores} cores)${metrics.cpu.loadAverage ? ` | **Load**: ${metrics.cpu.loadAverage.join(', ')}` : ''}`;
+                const memoryInfo = `**Memory**: ${metrics.memory.used}MB / ${metrics.memory.total}MB (${metrics.memory.percentage}% used) | **Available**: ${metrics.memory.available}MB`;
+                const diskInfo = metrics.disk.map(disk => `**${disk.device}** (${disk.mountPoint}): ${disk.used}GB / ${disk.total}GB (${disk.percentage}% used)`).join('\n');
+                const processInfo = metrics.processes.slice(0, 5).map(proc => `**${proc.name}** (PID: ${proc.pid}) - CPU: ${proc.cpu}%, Memory: ${proc.memory}MB, User: ${proc.user}`).join('\n');
+                const networkInfo = metrics.network.interfaces.slice(0, 3).map(iface => `**${iface.name}**: ↓${Math.round(iface.bytesIn / 1024)}KB ↑${Math.round(iface.bytesOut / 1024)}KB`).join('\n');
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: `# System Metrics for ${args.host}\n\n🕐 **Collected**: ${metrics.timestamp.toLocaleString()}\n\n## 🖥️ CPU\n${cpuInfo}\n\n## 💾 Memory\n${memoryInfo}\n\n## 💽 Disk Usage\n${diskInfo}\n\n## 🌐 Network Interfaces\n${networkInfo || 'No network data available'}\n\n## 🔝 Top Processes\n${processInfo}`,
+                        },
+                    ],
+                };
             }
-            const monitor = new SystemMonitor(client, osInfo);
-            const metrics = await monitor.getSystemMetrics(args.host);
-            // Format metrics for display
-            const cpuInfo = `**CPU Usage**: ${metrics.cpu.usage}% (${metrics.cpu.cores} cores)${metrics.cpu.loadAverage ? ` | **Load**: ${metrics.cpu.loadAverage.join(', ')}` : ''}`;
-            const memoryInfo = `**Memory**: ${metrics.memory.used}MB / ${metrics.memory.total}MB (${metrics.memory.percentage}% used) | **Available**: ${metrics.memory.available}MB`;
-            const diskInfo = metrics.disk.map(disk => `**${disk.device}** (${disk.mountPoint}): ${disk.used}GB / ${disk.total}GB (${disk.percentage}% used)`).join('\n');
-            const processInfo = metrics.processes.slice(0, 5).map(proc => `**${proc.name}** (PID: ${proc.pid}) - CPU: ${proc.cpu}%, Memory: ${proc.memory}MB, User: ${proc.user}`).join('\n');
-            const networkInfo = metrics.network.interfaces.slice(0, 3).map(iface => `**${iface.name}**: ↓${Math.round(iface.bytesIn / 1024)}KB ↑${Math.round(iface.bytesOut / 1024)}KB`).join('\n');
-            return {
-                content: [
-                    {
-                        type: 'text',
-                        text: `# System Metrics for ${args.host}\n\n🕐 **Collected**: ${metrics.timestamp.toLocaleString()}\n\n## 🖥️ CPU\n${cpuInfo}\n\n## 💾 Memory\n${memoryInfo}\n\n## 💽 Disk Usage\n${diskInfo}\n\n## 🌐 Network Interfaces\n${networkInfo || 'No network data available'}\n\n## 🔝 Top Processes\n${processInfo}`,
-                    },
-                ],
-            };
+            catch (error) {
+                console.error(`System metrics attempt ${attempt} failed:`, error);
+                if (attempt === 2) {
+                    throw error;
+                }
+                // Force disconnect stale connection before retry
+                await connectionPool.disconnect(args.host, config);
+                console.error(`Retrying system metrics for ${args.host}...`);
+            }
         }
-        catch (error) {
-            throw error;
-        }
+        throw new Error('System metrics failed after retries');
     }
     async handleProcessMonitor(args) {
         const config = this.createSSHConfig(args);
@@ -994,6 +1074,164 @@ class RemoteOpsServer {
         catch (error) {
             throw error;
         }
+    }
+    async handleSshMultiCommand(args) {
+        const { command, servers, timeout = 30, parallel = true, precheck = false } = args;
+        if (!servers || servers.length === 0) {
+            throw new Error('No servers specified');
+        }
+        console.error(`🚀 Executing command on ${servers.length} servers ${parallel ? 'in parallel' : 'sequentially'}: ${command}`);
+        // Pre-check connectivity if requested
+        if (precheck) {
+            console.error(`🔍 Pre-checking connectivity to ${servers.length} servers...`);
+            const connectivityResults = await Promise.allSettled(servers.map(async (server) => {
+                const config = this.createSSHConfig(server);
+                const client = await connectionPool.getConnection(server.host, config);
+                return { server: server.host, label: server.label || server.host };
+            }));
+            const reachableServers = connectivityResults
+                .map((result, index) => ({ result, server: servers[index] }))
+                .filter(({ result }) => result.status === 'fulfilled')
+                .map(({ server }) => server);
+            const unreachableServers = connectivityResults
+                .map((result, index) => ({ result, server: servers[index] }))
+                .filter(({ result }) => result.status === 'rejected');
+            if (unreachableServers.length > 0) {
+                let output = `# Multi-Server Connectivity Check\n\n`;
+                output += `**Reachable**: ${reachableServers.length} | **Unreachable**: ${unreachableServers.length}\n\n`;
+                if (unreachableServers.length > 0) {
+                    output += `## ❌ Unreachable Servers\n\n`;
+                    unreachableServers.forEach(({ server, result }) => {
+                        const label = server.label || server.host;
+                        const error = result.status === 'rejected' ? result.reason.message : 'Unknown error';
+                        output += `- **${label}** (${server.host}): ${error}\n`;
+                    });
+                    output += `\n`;
+                }
+                if (reachableServers.length === 0) {
+                    output += `No servers are reachable. Please check network connectivity and SSH service status.`;
+                    return {
+                        content: [{ type: 'text', text: output }],
+                    };
+                }
+                else {
+                    output += `Proceeding with ${reachableServers.length} reachable servers...\n\n`;
+                }
+            }
+        }
+        const executeOnServer = async (server) => {
+            const startTime = Date.now();
+            const label = server.label || server.host;
+            try {
+                const config = this.createSSHConfig(server);
+                console.error(`🔗 Connecting to ${label} (${server.host})...`);
+                const client = await connectionPool.getConnection(server.host, config);
+                console.error(`✅ Connected to ${label}, executing command...`);
+                // Execute command with timeout
+                const result = await Promise.race([
+                    client.executeCommand(command),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`Command timeout after ${timeout}s`)), timeout * 1000))
+                ]);
+                const executionTime = Date.now() - startTime;
+                console.error(`✅ Command completed on ${label} in ${executionTime}ms`);
+                return {
+                    server: server.host,
+                    label,
+                    success: true,
+                    stdout: result.stdout || '',
+                    stderr: result.stderr || '',
+                    executionTime
+                };
+            }
+            catch (error) {
+                const executionTime = Date.now() - startTime;
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                console.error(`❌ Command failed on ${label}: ${errorMessage}`);
+                // Categorize the error for better user feedback
+                let friendlyError = errorMessage;
+                if (errorMessage.includes('ECONNREFUSED')) {
+                    friendlyError = `SSH service not accessible (port may be closed or service down)`;
+                }
+                else if (errorMessage.includes('ENOTFOUND')) {
+                    friendlyError = `Host not found (DNS resolution failed)`;
+                }
+                else if (errorMessage.includes('EHOSTUNREACH')) {
+                    friendlyError = `Host unreachable (network issue)`;
+                }
+                else if (errorMessage.includes('Authentication failed')) {
+                    friendlyError = `Authentication failed (check credentials)`;
+                }
+                else if (errorMessage.includes('timeout')) {
+                    friendlyError = `Connection or command timeout`;
+                }
+                return {
+                    server: server.host,
+                    label,
+                    success: false,
+                    stdout: '',
+                    stderr: '',
+                    error: friendlyError,
+                    executionTime
+                };
+            }
+        };
+        // Execute commands
+        let results;
+        if (parallel) {
+            // Execute all commands in parallel
+            results = await Promise.all(servers.map(executeOnServer));
+        }
+        else {
+            // Execute commands sequentially
+            results = [];
+            for (const server of servers) {
+                const result = await executeOnServer(server);
+                results.push(result);
+            }
+        }
+        // Format results
+        const successCount = results.filter(r => r.success).length;
+        const failureCount = results.length - successCount;
+        const totalTime = Math.max(...results.map(r => r.executionTime));
+        let output = `# Multi-Server Command Execution\n\n`;
+        output += `**Command**: \`${command}\`\n`;
+        output += `**Servers**: ${results.length} | **Success**: ${successCount} | **Failed**: ${failureCount}\n`;
+        output += `**Execution**: ${parallel ? 'Parallel' : 'Sequential'} | **Total Time**: ${totalTime}ms\n\n`;
+        // Group results by success/failure
+        const successResults = results.filter(r => r.success);
+        const failureResults = results.filter(r => !r.success);
+        if (successResults.length > 0) {
+            output += `## ✅ Successful Executions (${successResults.length})\n\n`;
+            successResults.forEach(result => {
+                output += `### 🖥️ ${result.label} (${result.server})\n`;
+                output += `**Time**: ${result.executionTime}ms\n\n`;
+                if (result.stdout.trim()) {
+                    output += `**Output**:\n\`\`\`\n${result.stdout.trim()}\n\`\`\`\n\n`;
+                }
+                if (result.stderr.trim()) {
+                    output += `**Warnings**:\n\`\`\`\n${result.stderr.trim()}\n\`\`\`\n\n`;
+                }
+                if (!result.stdout.trim() && !result.stderr.trim()) {
+                    output += `*No output*\n\n`;
+                }
+            });
+        }
+        if (failureResults.length > 0) {
+            output += `## ❌ Failed Executions (${failureResults.length})\n\n`;
+            failureResults.forEach(result => {
+                output += `### 💥 ${result.label} (${result.server})\n`;
+                output += `**Time**: ${result.executionTime}ms\n`;
+                output += `**Error**: ${result.error}\n\n`;
+            });
+        }
+        return {
+            content: [
+                {
+                    type: 'text',
+                    text: output,
+                },
+            ],
+        };
     }
     async run() {
         const transport = new StdioServerTransport();

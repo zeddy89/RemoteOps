@@ -15,15 +15,21 @@ export class ConnectionPool {
         // Check if we have an existing connection
         if (this.connections.has(connectionKey)) {
             const pooledConn = this.connections.get(connectionKey);
-            // Test if connection is still alive
-            if (pooledConn.client.connected) {
+            // Test if connection is still alive with a health check
+            if (await this.isConnectionHealthy(pooledConn.client)) {
                 pooledConn.lastUsed = new Date();
                 console.error(`♻️  Reusing SSH connection to ${host}`);
                 return pooledConn.client;
             }
             else {
-                // Connection is dead, remove it
+                // Connection is dead, remove it and close properly
                 console.error(`🔄 Connection to ${host} is dead, removing from pool`);
+                try {
+                    await pooledConn.client.disconnect();
+                }
+                catch (e) {
+                    // Ignore disconnect errors for dead connections
+                }
                 this.connections.delete(connectionKey);
             }
         }
@@ -107,6 +113,27 @@ export class ConnectionPool {
         }
     }
     /**
+     * Check if a connection is healthy by running a simple command
+     */
+    async isConnectionHealthy(client) {
+        try {
+            // Check basic connection state first
+            if (!client.connected) {
+                return false;
+            }
+            // Try a simple command with short timeout
+            const result = await Promise.race([
+                client.executeCommand('echo "ping"'),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Health check timeout')), 5000))
+            ]);
+            return result.stdout?.trim() === 'ping';
+        }
+        catch (error) {
+            console.error('Connection health check failed:', error);
+            return false;
+        }
+    }
+    /**
      * Generate a unique key for connection identification
      */
     generateConnectionKey(host, config) {
@@ -129,6 +156,23 @@ export class ConnectionPool {
             }
         }
         toRemove.forEach(key => this.connections.delete(key));
+    }
+    /**
+     * Disconnect a specific connection
+     */
+    async disconnect(host, config) {
+        const connectionKey = this.generateConnectionKey(host, config);
+        if (this.connections.has(connectionKey)) {
+            const pooledConn = this.connections.get(connectionKey);
+            console.error(`🔌 Disconnecting SSH connection to ${host}`);
+            try {
+                await pooledConn.client.disconnect();
+            }
+            catch (error) {
+                console.error(`Error disconnecting from ${host}:`, error);
+            }
+            this.connections.delete(connectionKey);
+        }
     }
     /**
      * Start the cleanup timer

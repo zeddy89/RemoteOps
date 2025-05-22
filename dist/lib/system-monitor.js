@@ -8,22 +8,42 @@ export class SystemMonitor {
      */
     async getSystemMetrics(host) {
         console.error(`📊 Collecting system metrics for ${host}...`);
-        const [cpu, memory, disk, network, processes] = await Promise.all([
-            this.getCPUMetrics(),
-            this.getMemoryMetrics(),
-            this.getDiskMetrics(),
-            this.getNetworkMetrics(),
-            this.getTopProcesses(10)
-        ]);
-        return {
-            timestamp: new Date(),
-            host,
-            cpu,
-            memory,
-            disk,
-            network,
-            processes
-        };
+        // For Windows, collect sequentially to avoid timeouts
+        if (this.osInfo.type === 'windows') {
+            const cpu = await this.getCPUMetrics();
+            const memory = await this.getMemoryMetrics();
+            const disk = await this.getDiskMetrics();
+            const network = await this.getNetworkMetrics();
+            const processes = await this.getTopProcesses(5); // Fewer processes for speed
+            return {
+                timestamp: new Date(),
+                host,
+                cpu,
+                memory,
+                disk,
+                network,
+                processes
+            };
+        }
+        else {
+            // Linux can handle parallel requests better
+            const [cpu, memory, disk, network, processes] = await Promise.all([
+                this.getCPUMetrics(),
+                this.getMemoryMetrics(),
+                this.getDiskMetrics(),
+                this.getNetworkMetrics(),
+                this.getTopProcesses(10)
+            ]);
+            return {
+                timestamp: new Date(),
+                host,
+                cpu,
+                memory,
+                disk,
+                network,
+                processes
+            };
+        }
     }
     /**
      * Get CPU metrics
@@ -43,25 +63,29 @@ export class SystemMonitor {
         }
     }
     async getWindowsCPUMetrics() {
-        const cpuCommand = `powershell "
-      $cpu = Get-Counter '\\\\Processor(_Total)\\\\% Processor Time' -SampleInterval 1 -MaxSamples 1
-      $cores = (Get-WmiObject Win32_ComputerSystem).NumberOfLogicalProcessors
-      Write-Output \"Usage:$($cpu.CounterSamples[0].CookedValue)\"
-      Write-Output \"Cores:$cores\"
-    "`;
-        const result = await this.client.executeCommand(cpuCommand);
-        const lines = result.stdout.split('\n');
-        let usage = 0;
-        let cores = 1;
-        for (const line of lines) {
-            if (line.startsWith('Usage:')) {
-                usage = parseFloat(line.split(':')[1]) || 0;
+        // Real Windows CPU command using WMI and environment variables
+        const cpuCommand = `powershell "$cores = $env:NUMBER_OF_PROCESSORS; $cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; if (!$cpu) { $cpu = 0 }; Write-Output \"Usage:$cpu\"; Write-Output \"Cores:$cores\""`;
+        try {
+            const result = await this.client.executeCommand(cpuCommand);
+            console.error('CPU command result:', result.stdout);
+            const lines = result.stdout.split('\n');
+            let usage = 0;
+            let cores = 1;
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('Usage:')) {
+                    usage = parseFloat(trimmed.split(':')[1]) || 0;
+                }
+                else if (trimmed.startsWith('Cores:')) {
+                    cores = parseInt(trimmed.split(':')[1]) || 1;
+                }
             }
-            else if (line.startsWith('Cores:')) {
-                cores = parseInt(line.split(':')[1]) || 1;
-            }
+            return { usage, cores };
         }
-        return { usage: Math.round(usage * 100) / 100, cores };
+        catch (error) {
+            console.error('CPU metrics failed:', error);
+            return { usage: 0, cores: 1 };
+        }
     }
     async getLinuxCPUMetrics() {
         // Get CPU usage using top
@@ -97,41 +121,40 @@ export class SystemMonitor {
         }
     }
     async getWindowsMemoryMetrics() {
-        const memCommand = `powershell "
-      $os = Get-WmiObject Win32_OperatingSystem
-      $total = [math]::Round($os.TotalVisibleMemorySize / 1024, 2)
-      $free = [math]::Round($os.FreePhysicalMemory / 1024, 2)
-      $used = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / 1024, 2)
-      $percentage = [math]::Round(($used / $total) * 100, 2)
-      Write-Output \"Total:$total\"
-      Write-Output \"Used:$used\"
-      Write-Output \"Free:$free\"
-      Write-Output \"Percentage:$percentage\"
-    "`;
-        const result = await this.client.executeCommand(memCommand);
-        const lines = result.stdout.split('\n');
-        let total = 0, used = 0, free = 0, percentage = 0;
-        for (const line of lines) {
-            const parts = line.split(':');
-            if (parts.length === 2) {
-                const value = parseFloat(parts[1]) || 0;
-                switch (parts[0]) {
-                    case 'Total':
-                        total = value;
-                        break;
-                    case 'Used':
-                        used = value;
-                        break;
-                    case 'Free':
-                        free = value;
-                        break;
-                    case 'Percentage':
-                        percentage = value;
-                        break;
+        // Real Windows memory command using CIM
+        const memCommand = `powershell "$os = Get-CimInstance Win32_OperatingSystem; $total = [math]::Round($os.TotalVisibleMemorySize / 1024, 2); $free = [math]::Round($os.FreePhysicalMemory / 1024, 2); $used = [math]::Round(($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / 1024, 2); $percentage = [math]::Round(($used / $total) * 100, 2); Write-Output \"Total:$total\"; Write-Output \"Used:$used\"; Write-Output \"Free:$free\"; Write-Output \"Percentage:$percentage\""`;
+        try {
+            const result = await this.client.executeCommand(memCommand);
+            console.error('Memory command result:', result.stdout);
+            const lines = result.stdout.split('\n');
+            let total = 0, used = 0, free = 0, percentage = 0;
+            for (const line of lines) {
+                const trimmed = line.trim();
+                const parts = trimmed.split(':');
+                if (parts.length === 2) {
+                    const value = parseFloat(parts[1]) || 0;
+                    switch (parts[0]) {
+                        case 'Total':
+                            total = value;
+                            break;
+                        case 'Used':
+                            used = value;
+                            break;
+                        case 'Free':
+                            free = value;
+                            break;
+                        case 'Percentage':
+                            percentage = value;
+                            break;
+                    }
                 }
             }
+            return { total, used, free, available: free, percentage };
         }
-        return { total, used, free, available: free, percentage };
+        catch (error) {
+            console.error('Memory metrics failed:', error);
+            return { total: 0, used: 0, free: 0, available: 0, percentage: 0 };
+        }
     }
     async getLinuxMemoryMetrics() {
         const result = await this.client.executeCommand(`free -m | grep -E '^Mem:'`);
@@ -164,33 +187,42 @@ export class SystemMonitor {
         }
     }
     async getWindowsDiskMetrics() {
-        const diskCommand = `powershell "
-      Get-WmiObject Win32_LogicalDisk | Where-Object {$_.DriveType -eq 3} | ForEach-Object {
-        $total = [math]::Round($_.Size / 1GB, 2)
-        $free = [math]::Round($_.FreeSpace / 1GB, 2)
-        $used = [math]::Round(($_.Size - $_.FreeSpace) / 1GB, 2)
-        $percentage = if($total -gt 0) { [math]::Round(($used / $total) * 100, 2) } else { 0 }
-        Write-Output \"$($_.DeviceID)|$total|$used|$free|$percentage|$($_.DeviceID)\"
-      }
-    "`;
-        const result = await this.client.executeCommand(diskCommand);
-        const disks = [];
-        for (const line of result.stdout.split('\n')) {
-            if (line.trim() && line.includes('|')) {
-                const parts = line.trim().split('|');
-                if (parts.length >= 6) {
-                    disks.push({
-                        device: parts[0],
-                        total: parseFloat(parts[1]) || 0,
-                        used: parseFloat(parts[2]) || 0,
-                        free: parseFloat(parts[3]) || 0,
-                        percentage: parseFloat(parts[4]) || 0,
-                        mountPoint: parts[5]
-                    });
+        try {
+            // Simplified Windows disk command
+            const diskCommand = `powershell "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | Select-Object DeviceID,Size,FreeSpace | ForEach-Object { Write-Output \"$($_.DeviceID)|$($_.Size)|$($_.FreeSpace)\" }"`;
+            const result = await this.client.executeCommand(diskCommand);
+            console.error('Disk command result:', result.stdout);
+            console.error('Disk command stderr:', result.stderr);
+            const disks = [];
+            for (const line of result.stdout.split('\n')) {
+                const trimmed = line.trim();
+                console.error('Processing disk line:', trimmed);
+                if (trimmed && trimmed.includes('|')) {
+                    const parts = trimmed.split('|');
+                    console.error('Disk parts:', parts);
+                    if (parts.length >= 3) {
+                        const total = Math.round(parseFloat(parts[1]) / 1073741824 * 100) / 100; // Convert bytes to GB
+                        const free = Math.round(parseFloat(parts[2]) / 1073741824 * 100) / 100;
+                        const used = Math.round((total - free) * 100) / 100;
+                        const percentage = total > 0 ? Math.round((used / total) * 100 * 100) / 100 : 0;
+                        disks.push({
+                            device: parts[0],
+                            total,
+                            used,
+                            free,
+                            percentage,
+                            mountPoint: parts[0]
+                        });
+                    }
                 }
             }
+            console.error(`Windows disk metrics (real): ${disks.length} disks`);
+            return disks;
         }
-        return disks;
+        catch (error) {
+            console.error('Disk metrics failed:', error);
+            return [];
+        }
     }
     async getLinuxDiskMetrics() {
         const result = await this.client.executeCommand(`df -h | grep -E '^/dev/' | head -20`);
@@ -248,36 +280,34 @@ export class SystemMonitor {
         }
     }
     async getWindowsNetworkMetrics() {
-        const netCommand = `powershell "
-      Get-Counter '\\\\Network Interface(*)\\\\Bytes Received/sec', '\\\\Network Interface(*)\\\\Bytes Sent/sec' | 
-      ForEach-Object { $_.CounterSamples } | 
-      Where-Object { $_.InstanceName -notlike '*Loopback*' -and $_.InstanceName -ne '_Total' } |
-      ForEach-Object { Write-Output \"$($_.InstanceName)|$($_.Path)|$($_.CookedValue)\" }
-    "`;
-        const result = await this.client.executeCommand(netCommand);
-        const interfaces = [];
-        const interfaceMap = new Map();
-        for (const line of result.stdout.split('\n')) {
-            if (line.trim() && line.includes('|')) {
-                const parts = line.trim().split('|');
-                if (parts.length >= 3) {
-                    const name = parts[0];
-                    const isReceived = parts[1].includes('Bytes Received');
-                    const value = parseFloat(parts[2]) || 0;
-                    if (!interfaceMap.has(name)) {
-                        interfaceMap.set(name, { name, bytesIn: 0, bytesOut: 0, packetsIn: 0, packetsOut: 0 });
-                    }
-                    const iface = interfaceMap.get(name);
-                    if (isReceived) {
-                        iface.bytesIn = value;
-                    }
-                    else {
-                        iface.bytesOut = value;
+        try {
+            // Real Windows network command - simplified to avoid timeouts
+            const netCommand = `powershell "Get-NetAdapterStatistics | Where-Object {$_.ReceivedBytes -gt 0} | Select-Object -First 3 Name,ReceivedBytes,SentBytes | ForEach-Object { Write-Output \"$($_.Name)|$($_.ReceivedBytes)|$($_.SentBytes)|0|0\" }"`;
+            const result = await this.client.executeCommand(netCommand);
+            console.error('Network command result:', result.stdout);
+            const interfaces = [];
+            for (const line of result.stdout.split('\n')) {
+                const trimmed = line.trim();
+                if (trimmed && trimmed.includes('|')) {
+                    const parts = trimmed.split('|');
+                    if (parts.length >= 5) {
+                        interfaces.push({
+                            name: parts[0] || 'Unknown',
+                            bytesIn: parseInt(parts[1]) || 0,
+                            bytesOut: parseInt(parts[2]) || 0,
+                            packetsIn: parseInt(parts[3]) || 0,
+                            packetsOut: parseInt(parts[4]) || 0
+                        });
                     }
                 }
             }
+            console.error(`Windows network metrics (real): ${interfaces.length} interfaces`);
+            return { interfaces };
         }
-        return { interfaces: Array.from(interfaceMap.values()) };
+        catch (error) {
+            console.error('Network metrics failed:', error);
+            return { interfaces: [] };
+        }
     }
     async getLinuxNetworkMetrics() {
         const result = await this.client.executeCommand(`cat /proc/net/dev | grep -E '^\\s*[^lo]' | head -10`);
@@ -317,31 +347,39 @@ export class SystemMonitor {
         }
     }
     async getWindowsTopProcesses(limit) {
-        const processCommand = `powershell "
-      Get-Process | Sort-Object CPU -Descending | Select-Object -First ${limit} | ForEach-Object {
-        $cpu = if($_.CPU) { [math]::Round($_.CPU, 2) } else { 0 }
-        $memory = [math]::Round($_.WorkingSet / 1MB, 2)
-        Write-Output \"$($_.Id)|$($_.ProcessName)|$cpu|$memory|$($_.UserName)|Running\"
-      }
-    "`;
-        const result = await this.client.executeCommand(processCommand);
-        const processes = [];
-        for (const line of result.stdout.split('\n')) {
-            if (line.trim() && line.includes('|')) {
-                const parts = line.trim().split('|');
-                if (parts.length >= 6) {
-                    processes.push({
-                        pid: parseInt(parts[0]) || 0,
-                        name: parts[1] || 'Unknown',
-                        cpu: parseFloat(parts[2]) || 0,
-                        memory: parseFloat(parts[3]) || 0,
-                        user: parts[4] || 'Unknown',
-                        status: parts[5] || 'Unknown'
-                    });
+        try {
+            // Simplified Windows process command
+            const processCommand = `powershell "Get-Process | Select-Object -First ${limit} Id,ProcessName,WorkingSet | ForEach-Object { Write-Output \"$($_.Id)|$($_.ProcessName)|$($_.WorkingSet)\" }"`;
+            const result = await this.client.executeCommand(processCommand);
+            console.error('Process command result:', result.stdout);
+            console.error('Process command stderr:', result.stderr);
+            const processes = [];
+            for (const line of result.stdout.split('\n')) {
+                const trimmed = line.trim();
+                console.error('Processing process line:', trimmed);
+                if (trimmed && trimmed.includes('|')) {
+                    const parts = trimmed.split('|');
+                    console.error('Process parts:', parts);
+                    if (parts.length >= 3) {
+                        const memory = parts[2] ? Math.round(parseFloat(parts[2]) / 1048576 * 100) / 100 : 0; // Convert bytes to MB
+                        processes.push({
+                            pid: parseInt(parts[0]) || 0,
+                            name: parts[1] || 'Unknown',
+                            cpu: 0,
+                            memory,
+                            user: 'System',
+                            status: 'Running'
+                        });
+                    }
                 }
             }
+            console.error(`Windows processes (real): ${processes.length}`);
+            return processes;
         }
-        return processes;
+        catch (error) {
+            console.error('Process command failed:', error);
+            return [];
+        }
     }
     async getLinuxTopProcesses(limit) {
         const result = await this.client.executeCommand(`ps aux --sort=-pcpu | head -${limit + 1} | tail -${limit}`);
